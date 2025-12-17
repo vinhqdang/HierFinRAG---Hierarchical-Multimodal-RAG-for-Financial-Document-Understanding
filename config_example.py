@@ -1,0 +1,5 @@
+# Example Configuration File
+# Rename this file to config.py and fill in your API keys
+
+OPENAI_API_KEY = "your_openai_api_key_here"
+GEMINI_API_KEY = "your_gemini_api_key_here"
