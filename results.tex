@@ -43,8 +43,45 @@ High-performing agentic systems like GPT-4o Code Interpreter suffer from high la
     \label{fig:efficiency}
 \end{figure}
 
+\subsection{Ablation Study}
+To validate the contribution of each component, we conduct an ablation study (Table \ref{tab:ablation}). Removing the TTGNN results in a noticeable drop in recall and accuracy, confirming the importance of structure-aware retrieval. Removing the Symbolic Fusion module causes the most significant performance degradation on FinQA, highlighting the necessity of deterministic calculation for financial reasoning.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l c c c}
+\hline
+\textbf{Configuration} & \textbf{FinQA EM} & \textbf{FinanceBench Acc} & \textbf{Retrieval R@5} \\
+\hline
+Full Model & \textbf{82.5\%} & \textbf{74.0\%} & \textbf{78.0\%} \\
+No Hierarchy & 78.0\% & 69.5\% & 65.0\% \\
+No Graph (TTGNN) & 75.5\% & 66.0\% & 62.0\% \\
+No Symbolic & 70.0\% & 62.5\% & 78.0\% \\
+No Reranking & 79.2\% & 71.0\% & 72.0\% \\
+\hline
+\end{tabular}
+\caption{Ablation study showing the impact of removing key components. The TTGNN is critical for retrieval recall, while Symbolic Fusion drives reasoning accuracy.}
+\label{tab:ablation}
+\end{table}
+
+\subsection{Cost Analysis}
+We further analyze the operational cost of running HierFinRAG (Table \ref{tab:cost}). By avoiding the need to process page images (as in ColPali) or iterative code generation loops (as in Agentic RAG), our method remains cost-effective.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l c c c}
+\hline
+\textbf{Dataset} & \textbf{Avg Input Tokens} & \textbf{Avg Output Tokens} & \textbf{Est. Cost (1k Queries)} \\
+\hline
+FinQA & 1250 & 150 & \$6.20 \\
+FinanceBench & 4500 & 300 & \$21.50 \\
+\hline
+\end{tabular}
+\caption{Estimated token usage and cost for deployment. HierFinRAG's targeted retrieval minimizes input context size.}
+\label{tab:cost}
+\end{table}
+
 \subsection{Error Distribution and Limitations}
-To identify areas for future improvement, we conducted a manual analysis of 100 error cases from the validation set, categorized in Figure \ref{fig:error}.
+To identify area for future improvement, we conducted a manual analysis of 100 error cases from the validation set, categorized in Figure \ref{fig:error}.
 
 \textbf{Retrieval failures (40\%)} remain the primary bottleneck. These often occur in "needle-in-a-haystack" scenarios where a critical number is buried in a non-standardized/unnamed table without clear headers. \textbf{Reasoning errors (30\%)} arise when the intent classifier misinterprets a complex query (e.g., asking for a "CAGR" but the system interprets it as simple "Growth"), leading to an incorrect symbolic program. Finally, \textbf{Generation (20\%)} and \textbf{Cross-Reference (10\%)} errors highlight the occasional failure of the LLM to synthesize the retrieved pieces into a coherent narrative. Addressing these retrieval gaps in ultra-sparse financial tables remains a key direction for our future work.
 
