@@ -1,0 +1,44 @@
+\section{Experimental Results}
+\label{sec:results}
+
+In this section, we evaluate HierFinRAG on two challenging financial QA datasets: FinQA and FinanceBench. we compare our proposed framework against strong baselines, including Vanilla RAG and GPT-4o (with Code Interpreter), and provide a detailed analysis of retrieval quality, system efficiency, and error distribution.
+
+\subsection{Main Performance Comparison}
+We report the Exact Match (EM) accuracy for FinQA and Numerical Accuracy for FinanceBench. As shown in Figure \ref{fig:performance}, HierFinRAG achieves superior performance across both benchmarks. On the FinQA dataset, our model attains an accuracy of 82.5\%, outperforming the GPT-4o Code Interpreter baseline (76.0\%) by a significant margin. This improvement is even more pronounced on FinanceBench, where HierFinRAG reaches 74.0\% accuracy compared to 48.0\% for GPT-4o. The sharp performance drop for baselines on FinanceBench can be attributed to the dataset's requirement for retrieving evidence from long, unformatted documents, a task where our structure-aware graph retrieval excels.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{Fig1_Main_Performance.png}
+    \caption{Performance comparison of HierFinRAG against Vanilla RAG and GPT-4o Code Interpreter on FinQA and FinanceBench datasets.}
+    \label{fig:performance}
+\end{figure}
+
+\subsection{Retrieval Quality Analysis}
+The effectiveness of our Hierarchical Attention Retrieval is further evidenced by the Recall@k metric (Figure \ref{fig:retrieval}). HierFinRAG consistently achieves higher recall at all values of $k$. Notably, at $k=5$, our method reaches nearly 80\% recall, whereas Vanilla RAG struggles to surpass 45\%. This indicates that leveraging the explicit links between table cells and pointing text allows the model to surface relevant contexts that are otherwise missed by standard semantic search.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Fig2_Retrieval_Recall.png}
+    \caption{Retrieval Recall@k Comparison. HierFinRAG demonstrates superior recall, particularly at lower $k$ values, indicating highly precise context extraction.}
+    \label{fig:retrieval}
+\end{figure}
+
+\subsection{Efficiency-Accuracy Trade-off}
+We also analyze the computational efficiency of our system. Figure \ref{fig:efficiency} plots the average latency per query against accuracy. While vision-based approaches like ColPali offer reasonable accuracy, they suffer from high latency. Conversely, Vanilla RAG is fast but inaccurate. HierFinRAG occupies the optimal "Pareto frontier," delivering state-of-the-art accuracy (78.25\% average) with a modest latency of 4.2 seconds, making it ~3.5x faster than the GPT-4o Code Interpreter (15.0s), which requires iterative code generation and execution steps.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Fig3_Efficiency_Tradeoff.png}
+    \caption{Efficiency vs. Accuracy. HierFinRAG provides the best trade-off, verifying that structural priors are more efficient than iterative code generation or vision-heavy processing.}
+    \label{fig:efficiency}
+\end{figure}
+
+\subsection{Error Analysis}
+To understand the remaining limitations, we categorize 100 error cases from the validation set (Figure \ref{fig:error}). The largest source of error remains Retrieval (40\%), where the model fails to locate the correct footnote or obscure table row. Reasoning errors (30\%) occur when the symbolic plan is malformed. Generation and Cross-Reference errors constitute the remaining 30\%. Future work will focus on improving the robustness of the retrieval module against extremely dense tabular data.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{Fig4_Error_Analysis.png}
+    \caption{Distribution of Error Types. Retrieval failures contribute to the majority of incorrect answers, highlighting the difficulty of long-context financial search.}
+    \label{fig:error}
+\end{figure}
