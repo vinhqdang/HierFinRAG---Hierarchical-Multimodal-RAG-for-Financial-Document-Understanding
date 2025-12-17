@@ -1,0 +1,16 @@
+\section{Discussion}
+\label{sec:discussion}
+
+The results presented in Section \ref{sec:results} underscore the critical importance of structural awareness in financial document understanding. In this section, we discuss the broader implications of our findings, position HierFinRAG within the evolving landscape of RAG architectures, and acknowledge key limitations.
+
+\subsection{ The Necessity of Hybrid Reasoning}
+A central finding of this work is that pure neural approaches, even those utilizing state-of-the-art models like GPT-4o, struggle with the strict precision requirements of financial analytics. The "stochastic parrot" nature of LLMs is fundamentally at odds with the deterministic nature of accounting. Our \textit{Symbolic-Neural Fusion} mechanism addresses this by treating the LLM not as a calculator, but as a semantic parser that translates natural language intent into executable symbolic logic. This aligns with a growing trend in Neuro-Symbolic AI, suggesting that the path forward for domain-specific reliability lies in modular systems where neural networks handle ambiguity and symbolic engines handle logic.
+
+\subsection{ Structure as a First-Class Citizen}
+Standard RAG systems treat documents as linear text streams. Our ablation study confirm that this "flattening" assumption is the primary source of error in tabular QA. By representing the document as a graph (TTGNN), HierFinRAG preserves the \textit{topology} of the data. This allows the retrieval mechanism to "hop" from a text mention to a table row and then to a column header, effectively simulating the human reading process. This structural prior proves more efficient than expanding the context window, as evidenced by our favorable efficient-accuracy trade-off.
+
+\subsection{ Implications for Agentic Workflows}
+Current industry trends lean towards "Agentic RAG"—systems that use LLMs to iteratively browse, plan, and execute tools. While powerful, we observe that such agents are often unnecessarily slow and expensive for standard reporting tasks. HierFinRAG demonstrates that a well-designed, static architecture can achieve comparable or superior results to dynamic agents for a specific class of problems (financial QA) at a fraction of the inference cost.
+
+\subsection{ Limitations and Future Work}
+ despite its success, HierFinRAG relies heavily on the quality of the initial PDF-to-Graph parsing. If the underlying structure recognition (e.g., detecting table boundaries) fails, the downstream graph construction is compromised. Currently, we rely on heuristic parsers which can be brittle on non-standard formatting. Future work will focus on integrating end-to-end visually-rich document understanding models (VRDU) to robustly generate the graph topology directly from page pixels, bypassing brittle OCR heuristics. Additionally, we plan to extend the symbolic engine to support more complex financial instruments, such as derivatives and forecasted cash flow analysis.
