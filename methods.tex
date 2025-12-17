@@ -1,0 +1,74 @@
+\section{Methods}
+\label{sec:methods}
+
+In this section, we formally define the problem of financial document understanding and present the HierFinRAG framework. Our approach decomposes the task into three principal components: (1) Structure-Aware Graph Construction, (2) Table-Text Graph Learning, and (3) Symbolic-Neural Fusion.
+
+\subsection{Problem Formulation}
+Let $\mathcal{D} = \{S_1, S_2, \dots, S_N\}$ be a financial document composed of $N$ sections. Each section $S_i$ contains a set of text paragraphs $\mathcal{P}_i$ and tables $\mathcal{T}_i$. A table $T \in \mathcal{T}_i$ is defined as a matrix of cells $C_{r,c}$. Given a user query $Q$, the objective is to generate an answer $A$ and a set of supporting evidence $\mathcal{E} \subset \mathcal{D}$ such that $A$ is factually grounded in $\mathcal{E}$.
+
+\subsection{Table-Text Graph Construction}
+To capture the hierarchical and cross-modal dependencies, we construct a heterogeneous graph $\mathcal{G} = (\mathcal{V}, \mathcal{E}, \mathcal{R})$, where $\mathcal{V}$ is the set of nodes, $\mathcal{E}$ is the set of edges, and $\mathcal{R}$ denotes relation types.
+
+\subsubsection{Node Representation}
+The node set $\mathcal{V}$ comprises five distinct types: $\mathcal{V} = \mathcal{V}_P \cup \mathcal{V}_S \cup \mathcal{V}_T \cup \mathcal{V}_C \cup \mathcal{V}_G$, representing Paragraphs, Sections, Tables, Cells, and global document notes, respectively. Each node $v_i \in \mathcal{V}$ is initialized with a feature vector $\mathbf{h}_i^{(0)} \in \mathbb{R}^d$ via a pre-trained encoder (e.g., BERT-Large):
+\begin{equation}
+    \mathbf{h}_i^{(0)} = \text{Encoder}(\text{content}(v_i))
+\end{equation}
+
+\subsubsection{Edge Formation}
+We define a set of semantic and structural relations $\mathcal{R}$:
+\begin{itemize}
+    \item \textit{Structural Edges} ($e_{struct}$): Connects cells to their corresponding table headers, and tables/paragraphs to their parent sections.
+    \item \textit{Semantic Edges} ($e_{sem}$): Established between a paragraph node $v_p$ and a table row node $v_r$ if the cosine similarity between their embeddings exceeds a threshold $\tau$.
+    \item \textit{Cross-Reference Edges} ($e_{ref}$): Explicit links detected via regex matching (e.g., "see Table 3").
+\end{itemize}
+
+\subsection{Table-Text Graph Neural Network (TTGNN)}
+We propose the Table-Text Graph Neural Network (TTGNN) to verify the alignment between textual claims and tabular data. The network employs a relational graph attention mechanism.
+
+For a node $i$ and its neighbor $j$ under relation $r \in \mathcal{R}$, the attention coefficient $\alpha_{i,j}^r$ is computed as:
+\begin{equation}
+    \alpha_{i,j}^r = \frac{\exp(\sigma(\mathbf{a}_r^T [\mathbf{W}_r \mathbf{h}_i \| \mathbf{W}_r \mathbf{h}_j]))}{\sum_{k \in \mathcal{N}_i^r} \exp(\sigma(\mathbf{a}_r^T [\mathbf{W}_r \mathbf{h}_i \| \mathbf{W}_r \mathbf{h}_k]))}
+\end{equation}
+where $\mathbf{W}_r$ is a relation-specific weight matrix, $\mathbf{a}_r$ is the attention vector, and $\|$ denotes concatenation.
+
+The node representations are updated across $L$ layers:
+\begin{equation}
+    \mathbf{h}_i^{(l+1)} = \sigma\left( \sum_{r \in \mathcal{R}} \sum_{j \in \mathcal{N}_i^r} \alpha_{i,j}^r \mathbf{W}_r \mathbf{h}_j^{(l)} \right)
+\end{equation}
+
+To optimize the graph representation, we employ a supervised contrastive loss $\mathcal{L}_{con}$. Let $(v_i, v_p)$ be a positive pair (aligned text and table cell) and $\mathcal{N}$ be a batch of negative samples:
+\begin{equation}
+    \mathcal{L}_{con} = -\log \frac{\exp(\text{sim}(\mathbf{h}_i, \mathbf{h}_p) / \tau)}{\sum_{ v_n \in \mathcal{N}} \exp(\text{sim}(\mathbf{h}_i, \mathbf{h}_n) / \tau)}
+\end{equation}
+
+\subsection{Hierarchical Attention Retrieval}
+Retrieval operates in a top-down cascade.
+\textbf{Level 1 (Coarse):} We retrieve relevant sections using dense passage retrieval. The relevance score $S_{sec}(Q, S_i)$ is:
+\begin{equation}
+    S_{sec}(Q, S_i) = \cos(\mathbf{q}, \mathbf{s}_i)
+\end{equation}
+\textbf{Level 2 (Fine):} Within top-$k$ sections, we employ Reciprocal Rank Fusion (RRF) to combine sparse (BM25) and dense scores for paragraphs and tables:
+\begin{equation}
+    RRF(d) = \sum_{r \in \mathcal{M}} \frac{1}{\kappa + \text{rank}_r(d)}
+\end{equation}
+where $\mathcal{M} = \{\text{BM25}, \text{Dense}\}$ and $d \in \mathcal{P}_i \cup \mathcal{T}_i$.
+
+\subsection{Symbolic-Neural Fusion}
+To handle numerical reasoning, we introduce a routing function $\Phi(Q, \mathcal{C})$ that classifies the query type given context $\mathcal{C}$.
+\begin{equation}
+    \text{Mode} = \operatorname{argmax}_{m \in \{\text{Neural}, \text{Symbolic}\}} P(m | Q, \mathcal{C})
+\end{equation}
+
+If $\text{Mode} = \text{Symbolic}$, the system generates a pythonic program $\pi$. For example, to calculate a ratio:
+\begin{equation}
+    \pi = \texttt{divide}(\texttt{get\_cell}(T_{2,3}), \texttt{get\_cell}(T_{4,1}))
+\end{equation}
+The final execution result $V = \text{Exec}(\pi)$ is injected into the response template.
+
+The overall confidence score $C$ is a weighted combination of retrieval relevance and reasoning probability:
+\begin{equation}
+    C = \lambda_1 \cdot \text{sigmoid}(S_{sec}) + \lambda_2 \cdot P(\pi | Q)
+\end{equation}
+
+This hybrid approach ensures that arithmetic operations are provably correct while maintaining natural language flexibility.
