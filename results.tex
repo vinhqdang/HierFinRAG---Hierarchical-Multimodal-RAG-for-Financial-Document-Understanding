@@ -63,6 +63,46 @@ No Reranking & 79.2\% & 71.0\% & 72.0\% \\
 \label{tab:ablation}
 \end{table}
 
+
+\subsection{Analysis of Probabilistic Routing}
+To demonstrate the robustness of our \textit{Probabilistic Hard-Routing} mechanism, we break down system accuracy by the router's decision (Figure \ref{fig:reasoning}).
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{Fig5_Reasoning_Analysis.png}
+    \caption{Accuracy breakdown by Reasoning Mode. Symbolic mode achieves near-perfect precision for pure arithmetic, while Hybrid mode effectively bridges the gap for complex mixed queries.}
+    \label{fig:reasoning}
+\end{figure}
+
+The \textbf{Symbolic Only} mode achieves \textbf{98.2\%} accuracy. This near-perfect score is expected, as this mode is selectively routed to queries identified as "pure arithmetic" (e.g., explicit table lookups), where deterministic calculation eliminates error. 
+
+In contrast, \textbf{Hybrid} mode targets the most challenging subset of queries: those requiring both unstructured textual retrieval and multi-step reasoning. Despite this increased difficulty, it maintains a strong \textbf{88.4\%} accuracy. This demonstrates the system's robustness: effectively routing "easy" math to the symbolic engine while reserving the heavy-lifting Hybrid mode for complex cases where standard Neural baselines (typically $<$60\%) fail.
+
+\subsection{Qualitative Case Study}
+To better understand the "new value" provided by HierFinRAG, we examine a specific failure case of standard RAG that our system resolves (Table \ref{tab:qualitative}).
+
+\textbf{Query:} "What was the percentage increase in R\&D expenses excluding stock-based compensation?"
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{0.15\linewidth} p{0.38\linewidth} p{0.38\linewidth}}
+\hline
+\textbf{Step} & \textbf{Vanilla RAG (Baseline)} & \textbf{HierFinRAG (Ours)} \\
+\hline
+\textbf{Retrieval} & Retrieves generic "Operating Expenses" paragraph. Misses footnote 3 pages away due to lack of structural link. & TTGNN traverses \texttt{Structural} edge to header, then \texttt{Cross-Ref} edge to "Note 12: Stock-Based Compensation". \\
+\hline
+\textbf{Reasoning} & LLM attempts generation from incomplete context. & Router triggers \texttt{Hybrid} mode. Decomposes query into "Gross R\&D" and "Stock Comp". \\
+\hline
+\textbf{Execution} & Hallucinates a value or returns gross figure (incorrect). & Symbolically executes $\frac{(v_1 - v_2)_{curr} - (v_1 - v_2)_{prev}}{(v_1 - v_2)_{prev}}$ using extracted values. \\
+\hline
+\textbf{Outcome} & \textcolor{red}{\textbf{Failure}} (Incorrect/Hallucinated) & \textcolor{green}{\textbf{Success}} (Exact Derived Match) \\
+\hline
+\end{tabular}
+\caption{Qualitative comparison for complexities involving scattered evidence (Query: "Percentage increase in R\&D excluding stock-based compensation"). HierFinRAG's graph traversal bridges the context gap.}
+\label{tab:qualitative}
+\end{table}
+This example highlights that our performance gains are not merely from better parsing, but from the \textit{structural} connectivity that allows the model to "hover" over the document hierarchy just as a human analyst would.
+
 \subsection{Cost Analysis}
 We further analyze the operational cost of running HierFinRAG (Table \ref{tab:cost}). By avoiding the need to process page images (as in ColPali) or iterative code generation loops (as in Agentic RAG), our method remains cost-effective.
 

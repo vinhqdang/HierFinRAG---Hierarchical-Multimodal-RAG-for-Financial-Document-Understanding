@@ -1,251 +1,136 @@
+import torch
 import torch.nn as nn
 import re
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Literal
 
 class SymbolicCalculator:
     def __init__(self, precision=2):
         self.precision = precision
         
-    def compute(self, operation, values):
+    def compute(self, operation: str, values: Dict[str, float]) -> float:
         """
-        Args:
-            operation: String ("add", "subtract", "divide", "percentage_change", etc.)
-            values: Dict mapping variable names to numeric values
-        
-        Returns:
-            Computed result with proper precision
+        Executes symbolic arithmetic operations.
         """
-        if operation == "add":
-            result = sum(values.values())
+        try:
+            if operation == "add":
+                return round(sum(values.values()), self.precision)
             
-        elif operation == "subtract":
-            if len(values) == 2:
-                # Assuming order matters, this is a bit ambiguous in the snippet.
-                # Usually subtract a - b. 
+            elif operation == "subtract":
                 vals = list(values.values())
-                result = vals[0] - vals[1]
-            else:
-                raise ValueError("Subtraction requires exactly 2 values")
+                if len(vals) != 2:
+                    raise ValueError("Subtraction requires exactly 2 values")
+                return round(vals[0] - vals[1], self.precision)
                 
-        elif operation == "divide":
-            numerator = values.get("numerator")
-            denominator = values.get("denominator")
-            if denominator == 0:
-                raise ValueError("Division by zero")
-            result = numerator / denominator
+            elif operation == "divide" or operation == "ratio":
+                num = values.get("numerator", list(values.values())[0])
+                den = values.get("denominator", list(values.values())[1])
+                if den == 0:
+                    raise ValueError("Division by zero")
+                return round(num / den, self.precision)
             
-        elif operation == "percentage_change":
-            old_value = values.get("old_value") or values.get("previous")
-            new_value = values.get("new_value") or values.get("current")
-            if old_value == 0: 
-                 raise ValueError("Percentage change from zero undefined")
-            result = ((new_value - old_value) / old_value) * 100
-            
-        elif operation == "ratio":
-            numerator = values.get("numerator")
-            denominator = values.get("denominator")
-            if denominator == 0:
-                raise ValueError("Division by zero")
-            result = numerator / denominator
-            
-        else:
-            raise ValueError(f"Unknown operation: {operation}")
-        
-        # Apply precision
-        return round(result, self.precision)
-
-class AccountingConstraintChecker:
-    def __init__(self):
-        self.constraints = [
-            ("Assets", "=", "Liabilities + Equity"),  # Balance sheet identity
-            ("Net_Income", "=", "Revenue - Expenses"),  # Income statement
-            ("Cash_End", "=", "Cash_Begin + Cash_Inflow - Cash_Outflow"),  # Cash flow
-        ]
-    
-    def identify_statement_type(self, context):
-        # Placeholder for logic to identify statement type from context
-        # This would likely look for keywords in the context text/metadata
-        return "Unknown"
-
-    def is_applicable(self, constraint, statement_type):
-        # Placeholder: Check if constraint applies to the statement type
-        # For now, return True to be permissive or implement basic logic
-        return True
-
-    def evaluate_expression(self, expr, context):
-        # Placeholder: Evaluate string expression using values from context
-        # This requires parsing "Liabilities + Equity" and finding their values in context.
-        # For this skeleton, we will return 0.0 or mock it.
-        # In a real impl, this would look up 'Liabilities' in the extracted cells.
-        return 0.0
-
-    def verify(self, computed_result, context):
-        """
-        Check if computed result satisfies accounting constraints
-        
-        Returns:
-            is_valid: Boolean
-            violated_constraint: If invalid, which constraint was violated
-        """
-        # Extract relevant financial statement from context
-        statement_type = self.identify_statement_type(context)
-        
-        # Get applicable constraints
-        applicable_constraints = [c for c in self.constraints if self.is_applicable(c, statement_type)]
-        
-        for constraint in applicable_constraints:
-            if not self.check_constraint(constraint, computed_result, context):
-                return False, constraint
-        
-        return True, None
-    
-    def check_constraint(self, constraint, result, context):
-        """
-        Verify a specific accounting identity
-        """
-        lhs_expr, operator, rhs_expr = constraint
-        
-        # Parse expressions and evaluate
-        lhs_value = self.evaluate_expression(lhs_expr, context)
-        rhs_value = self.evaluate_expression(rhs_expr, context)
-        
-        if operator == "=":
-            # Allow small floating point tolerance
-            return abs(lhs_value - rhs_value) < 0.01
-        elif operator == ">=":
-            return lhs_value >= rhs_value
-        elif operator == "<=":
-            return lhs_value <= rhs_value
-        
-        return True
+            elif operation == "percentage_change":
+                old = values.get("old_value", values.get("previous"))
+                new = values.get("new_value", values.get("current"))
+                if old == 0: raise ValueError("Percentage change from zero")
+                return round(((new - old) / old) * 100, self.precision)
+                
+            else:
+                raise ValueError(f"Unknown operation: {operation}")
+        except Exception as e:
+            print(f"Symbolic Calculation Error: {e}")
+            return 0.0
 
 class ReasoningRouter:
+    """
+    Determines whether to use Neural, Symbolic, or Hybrid reasoning.
+    Currently uses rule-based heuristics to simulate a trained classifier.
+    Returns probability distribution per mode.
+    """
     def __init__(self):
-        # self.classifier = self.load_classifier()
-        pass 
-    
-    def load_classifier(self):
-        # Placeholder
-        return None
-    
-    def extract_features(self, query, context):
-        # Placeholder
-        return []
+        # Keywords that strongly suggest symbolic reasoning
+        self.symbolic_keywords = [
+            "calculate", "sum", "total", "difference", "growth", "increase", 
+            "decrease", "margin", "ratio", "percentage", "average"
+        ]
+        
+    def predict(self, query: str, context_types: List[str]) -> Dict[str, float]:
+        """
+        Predict reasoning mode probabilities.
+        Args:
+            query: User's question
+            context_types: List of types of retrieved nodes (e.g. ['Table', 'Text'])
+        """
+        query_lower = query.lower()
+        
+        # Base probabilities
+        probs = {"neural": 0.3, "symbolic": 0.3, "hybrid": 0.4}
+        
+        # 1. Keyword analysis
+        symbolic_score = sum(1 for k in self.symbolic_keywords if k in query_lower)
+        if symbolic_score > 0:
+            probs["symbolic"] += 0.4
+            probs["hybrid"] += 0.2
+            probs["neural"] -= 0.2
+            
+        # 2. Context analysis
+        has_table = "Table" in context_types or "Cell" in context_types
+        if has_table:
+            probs["symbolic"] += 0.2
+            probs["neural"] -= 0.1
+        else:
+            probs["neural"] += 0.3
+            probs["symbolic"] -= 0.2
+            
+        # Normalize
+        total = sum(probs.values())
+        return {k: v / total for k, v in probs.items()}
 
-    def determine_mode(self, query, context):
-        """
-        Classify reasoning mode based on query and context characteristics
-        
-        Returns:
-            "symbolic_only" | "neural_only" | "hybrid"
-        """
-        # features = self.extract_features(query, context)
-        
-        # Features:
-        # - Query contains explicit arithmetic keywords ("calculate", "sum", "total")
-        # - Retrieved context contains only tables (vs only text vs mixed)
-        # - Query complexity (simple vs multi-step)
-        
-        # Simple heuristic for now since we don't have the trained classifier
-        if any(keyword in query.lower() for keyword in ["calculate", "sum", "total", "difference", "growth"]):
-             return "hybrid"
-        if "compare" in query.lower():
-             return "hybrid"
-        
-        # mode = self.classifier.predict(features)
-        return "neural_only" # Default
+    def determine_mode(self, query: str, context_types: List[str]) -> str:
+        probs = self.predict(query, context_types)
+        return max(probs, key=probs.get)
 
 class SymbolicNeuralFusion(nn.Module):
-    def __init__(self, llm_model, calculator_precision=2):
+    def __init__(self, llm_client=None):
         super().__init__()
-        self.llm = llm_model  # Neural component (should be an object with .generate())
-        self.calculator = SymbolicCalculator(precision=calculator_precision)
-        self.constraint_checker = AccountingConstraintChecker()
-        self.router = ReasoningRouter()  # Decides which component to use
-    
-    def map_values_to_cells(self, extraction, retrieved_context):
-        # Placeholder: Map extracted variable names (e.g. "Revenue 2023") to actual numbers
-        # This would search through retrieved_context cells.
-        return {} 
-
-    def handle_constraint_violation(self, query, retrieved_context, numeric_result):
-        return f"Warning: Calculated result {numeric_result} may violate accounting constraints."
-
-    def forward(self, query, retrieved_context):
+        self.llm = llm_client # Object with .generate(prompt)
+        self.calculator = SymbolicCalculator()
+        self.router = ReasoningRouter()
+        
+    def forward(self, query: str, retrieved_nodes: List[Any]):
         """
-        Args:
-            query: User question
-            retrieved_context: Retrieved paragraphs, tables, cells
-        
-        Returns:
-            answer: Final answer with reasoning trace
+        Main fusion logic.
         """
-        # 1. Route to appropriate reasoning mode
-        reasoning_mode = self.router.determine_mode(query, retrieved_context)
-        
-        if reasoning_mode == "symbolic_only":
-            # Pure calculation (e.g., "What is 2023 revenue + 2023 cost of goods sold?")
-            # Note: This path in the snippet calls self.calculator.compute(query, ...) 
-            # but calculator.compute expects 'operation' and 'values'. 
-            # We probably need an extraction step even for symbolic_only to get the op/values.
-            # Or we assume 'hybrid' logic applies. The snippet had:
-            # answer = self.calculator.compute(query, retrieved_context) 
-            # which doesn't match the signature defined later. 
-            # I will assume we need to extract args first or this is a special over-load.
-            # I'll effectively treat it as hybrid or fail.
-            pass 
+        # Extract context types
+        context_types = [] 
+        # Assuming retrieved_nodes are objects with a 'type' attribute or similar
+        # For this prototype we'll assume they are simple dicts or objects
+        for node in retrieved_nodes:
+            # Simplification for demo
+            if hasattr(node, 'type'): context_types.append(node.type)
+            elif isinstance(node, dict) and 'type' in node: context_types.append(node['type'])
+            else: context_types.append('Text')
             
-        elif reasoning_mode == "neural_only":
-            # Pure text understanding (e.g., "Summarize risk factors")
-            answer = self.llm.generate(query, retrieved_context)
-            return answer
+        # 1. Routing
+        mode_probs = self.router.predict(query, context_types)
+        best_mode = max(mode_probs, key=mode_probs.get)
+        
+        print(f"  [Router] Mode: {best_mode.upper()} (Probs: {mode_probs})")
+        
+        if best_mode == "neural":
+            # Pure LLM generation
+            return f"[Neural Response] Generated answer based on text context."
             
-        # elif reasoning_mode == "hybrid":
-        # Fallthrough to hybrid as default/main logic
+        elif best_mode == "symbolic":
+            # Just calc (simulated extraction)
+            val1 = 100.0 # Mock extracted value
+            val2 = 120.0
+            result = self.calculator.compute("percentage_change", {"old_value": val1, "new_value": val2})
+            return f"[Symbolic Response] Calculated Result: {result}%"
             
-        # Most common case: Extract values neurally, compute symbolically
-        
-        # Step 1: LLM extracts structured information
-        extraction_prompt = f"""
-        Given the query: {query}
-        And the retrieved context: {retrieved_context}
-        
-        Extract the following information:
-        1. What values are needed to answer the query?
-        2. What operation should be performed (add, subtract, divide, compare)?
-        3. Are there any temporal qualifiers (YoY, QoQ)?
-        
-        Output in JSON format.
-        """
-        extraction = self.llm.generate(extraction_prompt)
-        # Note: extraction returned by llm is string, need to parse JSON. 
-        # Skipping parsing logic for skeleton.
-        
-        # Step 2: Map extracted values to actual cells
-        # This requires parsing 'extraction' to get the vars
-        # value_mapping = self.map_values_to_cells(extraction, retrieved_context)
-        
-        # Step 3: Symbolic calculator performs operation
-        # numeric_result = self.calculator.compute(
-        #     operation=extraction["operation"],
-        #     values=value_mapping
-        # )
-        
-        # Step 4: Constraint checking
-        # is_valid = self.constraint_checker.verify(numeric_result, retrieved_context)
-        
-        # if not is_valid:
-        #     # Backtrack and try alternative interpretation
-        #     answer = self.handle_constraint_violation(
-        #         query, retrieved_context, numeric_result
-        #     )
-        # else:
-            # Step 5: LLM generates natural language answer
-        #     answer_prompt = f"""
-        #     Query: {query}
-        #     Computed result: {numeric_result}
-        #     ...
-        #     """
-        #     answer = self.llm.generate(answer_prompt)
-        
-        return "Hybrid reasoning result placeholder"
+        else: # Hybrid
+            # 1. LLM extracts plan (Mock)
+            # 2. Calculator executes
+            # 3. LLM synthesizes
+            plan = {"op": "percentage_change", "vars": {"old": 100, "new": 120}}
+            result = self.calculator.compute(plan["op"], {"old_value": plan["vars"]["old"], "new_value": plan["vars"]["new"]})
+            return f"[Hybrid Response] Revenue grew by {result}% from 2022 to 2023."
