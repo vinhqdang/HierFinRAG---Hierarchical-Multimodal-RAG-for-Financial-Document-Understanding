@@ -27,7 +27,7 @@ HierFinRAG is a specialized Retrieval-Augmented Generation (RAG) framework desig
 
 ## Installation
 
-Ensure you have Python 3.8+ installed.
+Ensure you have Python 3.13+ installed.
 
 1.  Clone the repository:
     ```bash
@@ -77,4 +77,4 @@ This will generate:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPL 3.0 License - see the [LICENSE](LICENSE) file for details.
