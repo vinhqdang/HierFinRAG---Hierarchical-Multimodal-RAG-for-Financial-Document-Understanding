@@ -1,8 +1,0 @@
-\documentclass{article}
-\begin{document}
-
-\begin{abstract}
-Financial document understanding remains a critical challenge for large language models, primarily due to the complex interplay between narrative text and structured numerical tables. Existing Retrieval-Augmented Generation (RAG) systems often treat these modalities in isolation, leading to significant failures in tasks requiring joint reasoning. This study introduces HierFinRAG, a novel hierarchical multimodal framework designed to unify tabular and textual data processing. Our approach employs a Table-Text Graph Neural Network (TTGNN) to explicitly model semantic and structural dependencies between table cells and corresponding text, coupled with a Symbolic-Neural Fusion module that routes queries between a neural generator and a symbolic calculator for precise arithmetic operations. We evaluate the system on the FinQA and FinanceBench datasets, comparing performance against strong baselines including Vanilla RAG and GPT-4o with Code Interpreter. Results demonstrate that HierFinRAG achieves an Exact Match score of 82.5\% on FinQA, surpassing the best baseline by 6.5 percentage points, while maintaining a 3.5x faster inference latency than agentic approaches. These findings indicate that integrating hierarchical structural awareness with hybrid reasoning significantly enhances the accuracy and interpretability of financial artificial intelligence systems.
-\end{abstract}
-
-\end{document}
